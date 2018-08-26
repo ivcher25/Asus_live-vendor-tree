@@ -1,0 +1,207 @@
+# init.asus.debug.rc
+#	Add by Thomas Chu
+#
+
+on early-init
+    setprop logd.klogd true
+
+on post-fs-data
+# Josh: config panel whenever data partition ready
+    start config_panel
+# ASUS_BSP +++ [thomas]Add logcat_log folder
+    mkdir /data/logcat_log 0777 system system
+    mkdir /data/logcat_log/btsnoop 0777 system system
+# ASUS_BSP --- [thomas]Add logcat_log folder
+
+#ASUS_BSP+++ [thomas] Add asusdebug
+    chmod 0777 /proc/asusdebug
+    write /proc/asusdebug load
+    write /proc/asusdebug get_lastshutdown_log
+    start savebootuplog
+#ASUS_BSP--- [thomas] Add asusdebug
+
+    mkdir /data/log
+    mkdir /data/anr
+    mkdir /data/tombstones
+    mkdir /data/media/asus_log
+
+    chown system system /data/log
+    chown system system /data/anr
+    chown system system /data/tombstones
+    chown sdcard_rw sdcard_rw /data/media/asus_log
+
+#    chmod 0775 /data/log ==>move to init.asus.rc
+    chmod 0775 /data/anr
+    chmod 0775 /data/tombstones
+    chmod 0755 /data/media/asus_log
+
+#service block start ...
+# ASUS_BSP+++ [thomas]Add asus_ramdump and asus_kernelmsg services
+#service asus_ramdump /system/etc/init.asus.ramdump.sh
+#	class late_start
+#    user root
+#    group root
+#    disabled
+#    oneshot
+#on property:persist.asus.ramdump=0
+#	start asus_ramdump
+#
+#on property:persist.asus.ramdump=1
+#	start asus_ramdump
+
+service asus_kernelmsg /system/etc/init.asus.kernelmessage.sh
+    class late_start
+    user root
+    group root
+    disabled
+    oneshot
+on property:persist.asus.kernelmessage=0
+    start asus_kernelmsg
+
+on property:persist.asus.kernelmessage=7
+    start asus_kernelmsg
+
+# ASUS_BSP--- [thomas]Add asus_ramdump and asus_kernelmsg services
+
+# ASUS_BSP+++ [thomas]Add savelogmtp services
+service savelogmtp /system/etc/savelogmtp.sh
+    class late_start
+    user root
+    group sdcard_rw
+    oneshot
+    disabled
+    seclabel u:r:savelogmtp:s0
+# ASUS_BSP+++ [thomas]Add savelogmtp services
+
+on property:persist.asus.savelogs=*
+	start savelogs
+
+service savelogs /system/etc/savelogs.sh
+    class late_start
+    user root
+    group sdcard_rw
+    oneshot
+    disabled
+    seclabel u:r:savelogmtp:s0
+
+service check-datalog /system/bin/sh /system/etc/init.asus.checkdatalog.sh
+    class late_start
+    oneshot
+    seclabel u:r:savelogmtp:s0
+
+service savebootuplog /system/bin/sh /system/etc/savebootuplog.sh
+    user root
+    group root
+    oneshot
+    disabled
+    seclabel u:r:savelogmtp:s0
+
+on property:persist.asus.startlog=1
+    start console
+    start logcat
+    start logcat-radio
+    start logcat-events
+    write /sys/module/msm_rtb/parameters/enable 1
+    setprop persist.asus.dtv.startlog 1
+
+on property:persist.asus.startlog=0
+    stop console
+    stop logcat
+    stop logcat-radio
+    stop logcat-events
+    write /sys/module/msm_rtb/parameters/enable 0
+    setprop persist.asus.dtv.startlog 0
+
+service asus_chk_asdf /system/bin/sh /system/etc/init.asus.check_asdf.sh
+    user root
+    group root
+    disabled
+    oneshot
+    seclabel u:r:savelogmtp:s0
+
+on property:sys.boot_completed=1
+    start asus_chk_asdf
+
+on property:persist.radio.check_asdf=2733
+    start asus_chk_asdf
+
+service saveramdump /system/etc/saveramdump.sh
+    class late_start
+    oneshot
+    disabled
+    seclabel u:r:savelogmtp:s0
+
+service logcatFirstBoot /system/bin/logcat -r 30000 -v threadtime -f /cache/first_log -b first_log
+    class late_start
+    oneshot
+    disabled
+
+#log_main log_system
+service logcat /system/bin/logcat -r 10000 -b kernel -b main -n 20 -v threadtime -f /data/logcat_log/logcat.txt
+    class late_start
+    disabled
+#log_radio
+service logcat-radio /system/bin/logcat -r 10000 -b radio -n 20 -v time -f /data/logcat_log/logcat-radio.txt
+    class late_start
+    disabled
+#log_events
+service logcat-events /system/bin/logcat -r 10000 -b events -n 20 -v threadtime -f /data/logcat_log/logcat-events.txt
+    class late_start
+    disabled
+
+service sendevtlog /system/bin/sh /system/etc/sendevtlog.sh
+    class late_start
+    oneshot
+    disabled
+
+service sendlogcatlog /system/bin/sh /system/etc/sendlogcatlog.sh
+    class late_start
+    oneshot
+    disabled
+
+on property:persist.sys.downloadmode.enable=1
+    write /sys/module/restart/parameters/download_mode 1
+
+on property:persist.sys.downloadmode.enable=0
+    write /sys/module/restart/parameters/download_mode 0
+
+service config_panel /system/bin/sh /system/etc/init.asus.config_panel.sh
+    user root
+    group root
+    disabled
+    oneshot
+    seclabel u:r:savelogmtp:s0
+
+on property:persist.sys.lcd.480p=2
+    setprop persist.sys.debug.lcd.density 320
+    setprop persist.sys.debug.lcd.size 1
+    setprop persist.sys.debug.lcd.size.x 654
+    setprop persist.sys.debug.lcd.size.y 1163
+    setprop persist.sys.debug.hwc.fbsize 720x1280
+    write /sys/class/i2c-adapter/i2c-5/5-0010/elan_ktf/demo5inch 1
+
+on property:persist.sys.lcd.480p=1
+    setprop persist.sys.debug.lcd.density 213
+    setprop persist.sys.debug.lcd.size 1
+    setprop persist.sys.debug.lcd.size.x 654
+    setprop persist.sys.debug.lcd.size.y 1163
+    setprop persist.sys.debug.hwc.fbsize 480x854
+    write /sys/class/i2c-adapter/i2c-5/5-0010/elan_ktf/demo5inch 1
+
+on property:persist.sys.lcd.480p=0
+    setprop persist.sys.debug.lcd.density 320
+    setprop persist.sys.debug.lcd.size 0
+    setprop persist.sys.debug.lcd.size.x 720
+    setprop persist.sys.debug.lcd.size.y 1280
+    setprop persist.sys.debug.hwc.fbsize 720x1280
+    write /sys/class/i2c-adapter/i2c-5/5-0010/elan_ktf/demo5inch 0
+
+on property:sys.boot_completed=1
+    start push_media_file
+
+service push_media_file /system/bin/sh /system/etc/push_media_file.sh
+    class late_start
+    user root
+    group sdcard_rw
+    oneshot
+    disabled

@@ -1,0 +1,2 @@
+#import the asus config rc file to support exfat in recovery mode
+import init.recovery.asus.rc

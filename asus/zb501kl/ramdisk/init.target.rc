@@ -1,0 +1,810 @@
+# Copyright (c) 2012, 2014, The Linux Foundation. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of The Linux Foundation nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+
+# init.asus.factory.rc
+# for asusdebug tool
+import init.asus.debugtool.rc
+
+# add SP for dynamic property
+service sp /bin/sp
+    user root
+    group root
+    disabled
+    oneshot
+
+on firmware_mounts_complete
+#    start sp
+
+on early-init
+    mkdir /firmware 0771 system system
+    symlink /data/tombstones /tombstones
+# ASUS_BSP+++ BennyCheng "create Removable directory for mounting external storages"
+    mkdir /Removable 0755 media_rw media_rw
+    mount tmpfs tmpfs /Removable mode=0755,gid=1000
+# ASUS_BSP--- BennyCheng "create Removable directory for mounting external storages"
+
+# [5816][OTG] Enable USB OTG mass storage function Person Liu 20151005 S
+on init
+#    mkdir /mnt/media_rw/usbdisk1 0700 media_rw media_rw
+#    mkdir /storage/usbdisk1 0700 root root
+#    export SECONDARY_STORAGE /storage/usbdisk1
+# [5816][OTG] Enable USB OTG mass storage function Person Liu 20151005 E
+    mkdir /APD 0775 system system
+    mkdir /ADF 0775 system system
+
+    # asus fw
+    mkdir /asusfw 0775 system system
+
+on fs
+    mount_all fstab.qcom
+    swapon_all fstab.qcom
+
+    # Keeping following partitions outside fstab file. As user may not have
+    # these partition flashed on the device. Failure to mount any partition in fstab file
+    # results in failure to launch late-start class.
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/cache
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/cache /cache nosuid nodev barrier=1
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/persist
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/persist /persist nosuid nodev barrier=1
+    restorecon_recursive   /persist
+    mkdir /persist/data 0700 system system
+    mkdir /persist/data/sfs 0700 system system
+    mkdir /persist/data/tz 0700 system system
+    mkdir /persist/sensors 0775 sensors sensors
+    write /persist/sensors/sensors_settings 1
+#[5816][Storage] Add Removable path for ASUS Spec Person Liu S
+#    mkdir /Removable
+#    symlink /storage/sdcard1 /Removable/MicroSD
+#    symlink /storage/usbdisk1 /Removable/USBdisk1
+#[5816][Storage] Add Removable path for ASUS Spec Person Liu E
+
+#[5816][eMMC]Modify for SELinux Permission issue Person Liu 20151007 S
+#[5816][eMMC]Add for generate extra image Person Liu 20150909 S
+    mkdir /factory 0777 system system
+    mkdir /oem 0777 system system
+    mkdir /asdf 0777 system system
+#[5816][eMMC]Add for generate extra image Person Liu 20150909 E
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/factory
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/factory /factory nosuid nodev barrier=1
+    restorecon_recursive   /factory
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/oem
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/oem /oem nosuid nodev barrier=1
+    restorecon_recursive   /oem
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/ADF
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/ADF /ADF nosuid nodev barrier=1
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/asdf
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/asdf /asdf nosuid nodev barrier=1
+    restorecon_recursive   /asdf
+
+    wait /dev/block/platform/msm_sdcc.1/by-name/asusfw
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/asusfw /asusfw nosuid nodev barrier=1
+    chown system system /asusfw
+    chmod 0777 /asusfw
+    restorecon_recursive   /asusfw
+
+    chown system system /factory
+    chmod 0777 /factory
+    chown system system /oem
+    chmod 0777 /oem
+
+    chown system system /asdf
+    chmod 0777 /asdf
+
+    # asuskey4
+    chmod 0666 /dev/block/mmcblk0p27
+
+#[5816][eMMC]Modify for SELinux Permission issue Person Liu 20151007 E
+
+# [Arima_5816]Create files for nv information Person Liu 20150922 S
+   chmod 0777 /factory/nv-isno
+   chmod 0777 /factory/nv-rear_camera_support
+   chmod 0777 /factory/nv-ssn
+# [Arima_5816]Create files for nv information Person Liu 20150922 E
+#<--[5816][Sensors][JasonHsing] Create files for store the calibration data 20150917 BEGIN --
+    mkdir /factory/sensors 0771 system system
+#-->[5816][Sensors][JasonHsing] Create files for store the calibration data 20150917 END --
+#<--[5816][Sensors][JasonHsing] chmod 666 for files of calibration data 20151007 BEGIN --
+    chmod 0666 /factory/sensors/accel_x
+    chmod 0666 /factory/sensors/accel_y
+    chmod 0666 /factory/sensors/accel_z
+    chmod 0666 /factory/sensors/als_factor
+    chmod 0666 /factory/sensors/ps_far
+    chmod 0666 /factory/sensors/ps_near
+#-->[5816][Sensors][JasonHsing] chmod 666 for files of calibration data 20151007 END --
+#<--[5816][Sensors][JasonHsing] Store the laser focus calibration data 20151012 BEGIN --
+    chmod 0666 /factory/sensors/laser_10
+    chmod 0666 /factory/sensors/laser_40
+#-->[5816][Sensors][JasonHsing] Store the laser focus calibration data 20151012 END --
+    wait /dev/block/platform/msm_sdcc.1/by-name/modem
+    mount vfat /dev/block/platform/msm_sdcc.1/by-name/modem /firmware ro context=u:object_r:firmware_file:s0,shortname=lower,uid=1000,gid=1000,dmask=226,fmask=333
+
+# ASUS_BSP +++  "storage info for AMAX"
+    symlink /sys/bus/mmc/devices/mmc0:0001/emmc_total_size /data/data/emmc_total_size
+# ASUS_BSP ---  "storage info for AMAX"
+
+# ASUS_BSP +++  "insmod texura module"
+    insmod /system/lib/modules/texfat.ko
+# ASUS_BSP ---  "insmod texura module"
+
+on post-fs-data
+
+    symlink /system/bin/proximity_status /data/data/proximity_status
+    chown system system /sys/class/i2c-adapter/i2c-2/2-0023/ps_threshold
+    chown system system /sys/class/i2c-adapter/i2c-2/2-0023/ps_pulses
+
+# BT ATD tool
+    symlink /system/bin/btrftest /data/data/BtTest
+
+#ASUS_BSP+++ Kevin_Fu "link fmtest for ATD test"(Jeremy add 20150122)
+		symlink /system/bin/fmtest /data/data/fmtest
+#ASUS_BSP--- Kevin_Fu "link fmtest for ATD test"(Jeremy add 20150122)
+
+# ASUS add for support auto-upgrading touch fw by request firmware +++
+    start touch_fw_update
+# ASUS add for support auto-upgrading touch fw by request firmware ---
+    mkdir /data/tombstones 0771 system system
+    mkdir /tombstones/modem 0771 system system
+#ASUS_BSP+++ LandiceFu "[ZE500KL][USBH][NA][spec] Support USB1.0/2.0 switch for factory test requirement"
+    rm /data/data/USB
+    symlink /sys/devices/platform/msm_hsusb/gadget/force_port_speed /data/data/USB
+    chmod 0777 /data/data/USB
+#ASUS_BSP--- LandiceFu "[ZE500KL][USBH][NA][spec] Support USB1.0/2.0 switch for factory test requirement"
+
+
+#ASUS_BSP+++ LandiceFu "[ZE500KL][USBH][NA][spec] Support USB1.0/2.0 switch for factory test requirement"
+    rm /data/data/USB
+    symlink /sys/devices/platform/msm_hsusb/gadget/force_port_speed /data/data/USB
+    chmod 0777 /data/data/USB
+#ASUS_BSP--- LandiceFu "[ZE500KL][USBH][NA][spec] Support USB1.0/2.0 switch for factory test requirement"
+
+# ASUS_BSP+++ "Add symlink for GPS factory tool"
+    symlink /system/bin/GpsTest /data/data/GpsTest
+# ASUS_BSP--- "Add symlink for GPS factory tool"
+
+# ASUS_BSP+++ Jack "link PhoneInfoTest for ATD test"
+    symlink /system/bin/PhoneInfoTest /data/data/PhoneInfoTest
+    symlink /system/bin/SCurrentTest /data/data/SCurrentTest
+    symlink /system/bin/SIMTest /data/data/SIMTest
+    symlink /system/bin/RFMaxPower /data/data/RFMaxPower
+    symlink /system/bin/RFSupportTech /data/data/RFSupportTech
+# ASUS_BSP--- Jack "link PhoneInfoTest for ATD test"
+
+#ASUS_BBSP+++ "[SSR][Factory]Disable SSR in FTM Mode"
+    setprop persist.sys.modem.restart 0
+#ASUS_BBSP--- "[SSR][Factory]Disable SSR in FTM Mode"
+
+#ASUS_BSP+++ Porting Keypad
+    symlink /system/bin/Keypad_Test /data/data/Keypad_Test
+    symlink /system/bin/Keypad_Test /data/data/Keypad_Test_Mode
+    chmod 0777 /data/data/Keypad_Test
+    chmod 0777 /data/data/Keypad_Test_Mode
+    chmod 0666 /sys/module/qpnp_power_on/parameters/pwrkey_mode
+#ASUS_BSP+++ Porting Keypad
+
+#Asus_BSP Evan : G-sensor & E-compass ATD porting+++
+
+    symlink /system/bin/gsensor_status /data/data/gsensor_status
+    symlink /system/bin/ecompass_status /data/data/ecompass_status
+    symlink /system/bin/gsensor_calibration /data/data/GsensorCalibration
+    symlink /system/bin/hallsensor_status.sh /data/data/hallsensor_status
+
+
+    chmod 0444 /data/data/gsensor_status
+    chmod 0444 /data/data/ecompass_status
+    chmod 0444 /data/data/GsensorCalibration
+    chmod 0444 /data/data/hallsensor_status
+
+#Asus_BSP Evan : G-sensor & E-compass ATD porting---
+
+
+#Asus Bsp Ryan : front camera(vga_status) / back camera(camera_status) for BMMI test+++
+symlink /system/bin/camera_status /data/data/camera_status
+	chmod 0777 /data/data/camera_status
+symlink /system/bin/vga_status /data/data/vga_status
+	chmod 0777 /data/data/vga_status
+#Asus Bsp Ryan : front camera(vga_status) / back camera(camera_status) for BMMI test---
+
+#ASUS_BSP darrency +++ "add flash status interface"
+     rm  /data/data/camera_flash
+    symlink  /system/bin/camera_flash /data/data/camera_flash
+    chmod 777 /data/data/camera_flash
+    rm /data/data/camera_flash3
+    symlink  /system/bin/camera_flash3 /data/data/camera_flash3
+    chmod 777 /data/data/camera_flash3 
+    rm /data/data/Camera_Unique_ID
+    symlink  /system/bin/Camera_Unique_ID /data/data/Camera_Unique_ID
+    chmod 777 /data/data/Camera_Unique_ID  
+     rm  /data/data/BackupCalibrationData
+    symlink  /system/bin/backup_front_offlinedata /data/data/BackupCalibrationData
+    chmod 777 /data/data/BackupCalibrationData
+    rm  /data/data/FrontCaldataC2factory
+    symlink  /system/bin/frontdata_c2f /data/data/FrontCaldataC2factory
+    chmod 777 /data/data/FrontCaldataC2factory 
+#ASUS_BSP darrency --- "add flash status interface "
+
+# ASUS_BSP +++ Gavin_Chang "storage info for ATD and AMAX"
+ symlink /storage/MicroSD /Removable/MicroSD
+    symlink /sys/bus/mmc/devices/mmc0:0001/emmc_status /data/data/emmc_status
+    symlink /sys/bus/mmc/devices/mmc0:0001/emmc_size /data/data/emmc_size
+    symlink /sys/bus/mmc/devices/mmc0:0001/emmc_prv /data/data/emmc_fw
+    symlink /sys/bus/mmc/devices/mmc0:0001/emmc_fw_version /data/data/emmc_fw_version
+    symlink /sys/bus/mmc/devices/mmc0:0001/emmc_total_size /data/data/emmc_total_size
+    write 0 > /data/data/sd_status
+
+    chmod 0777 /data/data/emmc_status
+    chmod 0777 /data/data/emmc_size
+    chmod 0777 /data/data/emmc_fw
+    chmod 0777 /data/data/emmc_fw_version
+    chmod 0777 /data/data/emmc_total_size
+    chmod 0777 /data/data/sd_status
+# ASUS_BSP --- Gavin_Chang "storage info for ATD and AMAX"
+
+    # demo app
+    restorecon /ADF
+    restorecon_recursive   /ADF
+    chmod 0775 /ADF
+    chmod 0775 /ADF/boot
+    chown system system /ADF
+
+# ASUS_BSP +++ adb enable property
+	setprop factory.adbon ${ro.boot.adb.enable}
+# ASUS_BSP --- adb enable property
+    
+    #ASUS_BSP +++ for LedTest
+    symlink /system/bin/LedTest /data/data/LEDTest
+    chmod 0777 /data/data/LEDTest
+    chmod 0666 /sys/class/leds/red/brightness
+    chmod 0666 /sys/class/leds/green/brightness
+    chown system system /sys/class/leds/red/blink
+    chmod 0666 /sys/class/leds/red/blink
+    chown system system /sys/class/leds/green/blink
+    chmod 0666 /sys/class/leds/green/blink
+    chown system system /sys/class/leds/mix/brightness
+    chmod 0666 /sys/class/leds/mix/brightness
+    chown system system /sys/class/leds/mix/blink
+    chmod 0666 /sys/class/leds/mix/blink
+    #ASUS_BSP --- for LedTest
+
+#ASUS_BSP+++ Vincent_Chu "modify about wifi path for ATD test"
+    symlink /system/bin/WifiTest /data/data/WifiTest
+    symlink /system/bin/iwpriv /data/data/iwpriv
+#ASUS_BSP--- Vincent_Chu "modify about wifi path for ATD test"
+
+    #ASUS_BSP for SD
+    symlink /system/etc/check_sd.sh /data/data/sd_status
+
+    #ASUS_BSP for vibratortest
+    symlink /system/bin/VibratorTest /data/data/VibratorTest
+    chmod 0777 /data/data/VibratorTest
+    chmod 0666 /sys/class/timed_output/vibrator/enable
+
+#Asus_BSP Steve2 :thermal limit set for stree test +++
+    symlink /proc/driver/thermal_limit_enable /data/data/thermal_limit_enable
+    chmod 0664 /data/data/thermal_limit_enable
+#Asus_BSP Steve2 :thermal limit set for stree test ---
+
+#Asus_BSP Steve2 : [BAT]add BMMI interface for ATD +++
+    symlink /proc/driver/chargerIC_status /data/data/prop_chargerIC_status
+    symlink /system/bin/asus.factory.chargerIC.sh /data/data/chargerIC_status
+    chmod 0777 /data/data/prop_chargerIC_status
+    chmod 0777 /data/data/chargerIC_status
+    chmod 0777 /sys/class/power_supply/battery/capacity
+#Asus_BSP Steve2 : [BAT]add BMMI interface for ATD ---
+
+#AllenCH_Lin +++
+    symlink /system/bin/AudioRoutingTest /data/data/AudioRoutingTest
+    symlink /system/bin/audio_codec_status /data/data/audio_codec_status
+    symlink /system/bin/headset_status /data/data/headset_status
+    chmod 0777 /data/data/AudioRoutingTest
+    chmod 0777 /data/data/audio_codec_status
+    chmod 0777 /data/data/headset_status
+    chmod 0777 /data/data
+    symlink /system/bin/SpeakerCalibrationTest /data/data/SpeakerCalibrationTest
+    chmod 0777 /data/data/SpeakerCalibrationTest
+    symlink /system/bin/select_mic.sh /data/data/select_mic
+    chmod 0777 /data/data/select_mic
+#AllenCH_Lin ---
+
+#Jessy +++
+    symlink /system/bin/smartAMP_status.sh /data/data/smartAMP_status
+    chmod 0777 /data/data/smartAMP_status
+#Jessy ---
+
+# asus_bsp +++ ryder_hsu "add for BMMI & SMMI test"
+	symlink /system/bin/touch_status.sh /data/data/touch_status
+	chmod 0777 /data/data/touch_status
+	symlink /system/bin/Tpselftest.sh /data/data/Tpselftest
+	chmod 0777 /data/data/Tpselftest
+	symlink /system/etc/test_sensor_0.ini /data/data/test_sensor_0.ini
+	chmod 0777 /data/data/test_sensor_0.ini
+	symlink /system/bin/touch_function.sh /data/data/touch_function
+	chmod 0777 /data/data/touch_function
+# asus_bsp --- ryder_hsu "add for BMMI & SMMI test"
+
+
+#ASUS_BSP+++ Eric5_Ou "link DTV_status for ATD test"
+	symlink /system/bin/DTV_status /data/data/DTV_status
+	chmod 0777 /data/data/DTV_status
+#ASUS_BSP--- Eric5_Ou "link DTV_status for ATD test"
+
+on boot
+    insmod /system/lib/modules/adsprpc.ko
+    # Enable writing to led blink node from userspace
+    chown system system /sys/class/leds/red/blink
+    chown system system /sys/class/leds/green/blink
+    # Enable writing to brightness node under torch-light from userspace
+    chown system system /sys/class/leds/torch-light/brightness
+    # Enable Focaltech touch controller auto firmware update
+    write /sys/bus/i2c/drivers/ft5x06_ts/5-0038/update_fw 1
+    # [5816][Camera][akenhsu] Pass the color temperature to Dual Flash Driver 20151002 BEGIN
+    chown camera camera /sys/bus/i2c/drivers/ti,lm3644tt/2-0063/ct_lv
+    # [5816][Camera][akenhsu] 20151002 END
+    #[5816][DTV][15092501][begin]
+    chmod 0666 /dev/spidev0.0
+    chown system /dev/spidev0.0
+		#[5816][DTV][15092501][end]
+#ASUS_BSP WIFI+++
+    start wlan_prov
+
+service wlan_prov /system/bin/wlan_prov
+    class main
+    user root
+    group system wifi
+    disabled
+    oneshot
+#ASUS_BSP WIFI---
+# [5816][OTG] Enable USB OTG mass storage function Person Liu 20151005 S
+#service fuse_usbdisk1 /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/usbdisk1 /storage/usbdisk1
+#    class late_start
+#    disabled
+# [5816][OTG] Enable USB OTG mass storage function Person Liu 20151005 E
+
+#start camera server as daemon
+service qcamerasvr /system/bin/mm-qcamera-daemon
+    class late_start
+    user camera
+    group camera system inet input graphics
+
+# Allow usb charging to be disabled persistently
+on property:persist.usb.chgdisabled=1
+   write /sys/class/power_supply/battery/charging_enabled 0
+
+on property:persist.usb.chgdisabled=0
+   write /sys/class/power_supply/battery/charging_enabled 1
+
+service time_daemon /system/bin/time_daemon
+   class late_start
+   user root
+   group root
+
+service mpdecision /system/bin/mpdecision --avg_comp
+   class main
+   user root
+   disabled
+
+#Jessy +++
+service tfaspk /system/bin/TfaSpeakerCalibration 0
+    user root
+    group root
+    disabled
+    oneshot
+
+on property:sys.boot_completed=1
+    start tfaspk
+#Jessy ---
+
+#AllenCH_Lin +++
+service spk_feedback /system/bin/tinyfeedback -p 512 -n 4 -A
+    user root
+    group root
+    disabled
+    oneshot
+
+on property:audio.spk.feedback=0
+    stop spk_feedback
+
+on property:audio.spk.feedback=1
+    start spk_feedback
+#AllenCH_Lin ---
+
+service thermal-engine /system/vendor/bin/thermal-engine
+   class main
+   user root
+   socket thermal-send-client stream 0666 system system
+   socket thermal-recv-client stream 0660 system system
+   socket thermal-recv-passive-client stream 0666 system system
+   group root
+
+service qrngd /system/bin/qrngd -f
+    class main
+    user root
+    group root
+
+
+service qrngp /system/bin/qrngp
+    class main
+    user root
+    group root
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start qrngp
+
+service qseecomd /system/bin/qseecomd
+    class core
+    user root
+    group root
+
+service audiod /system/bin/audiod
+   class late_start
+   user system
+   group system
+
+service adsprpcd /system/bin/adsprpcd
+   class main
+   user media
+   group media
+
+service imsqmidaemon /system/bin/imsqmidaemon
+    class main
+    user system
+    socket ims_qmid stream 0660 system radio
+    group radio net_raw log qcom_diag
+
+service imsdatadaemon /system/bin/imsdatadaemon
+    class main
+    user system
+    socket ims_datad stream 0660 system radio
+    group system wifi radio inet net_raw log qcom_diag net_admin
+    disabled
+
+on property:sys.ims.QMI_DAEMON_STATUS=1
+    start imsdatadaemon
+
+service ims_rtp_daemon /system/bin/ims_rtp_daemon
+   class main
+   user system
+   socket ims_rtpd stream 0660 system radio
+   group radio net_raw diag qcom_diag log
+   disabled
+
+on property:sys.ims.DATA_DAEMON_STATUS=1
+    start ims_rtp_daemon
+
+service wcnss-service /system/bin/wcnss_service
+   class main
+   user system
+   group system wifi radio
+   oneshot
+
+# SERVICE parse_factory_nv PARSE THE FATORY DATA TO SET PROPERTIES
+service parse_factory_nv /system/bin/init.parse.factory.nv.sh
+    class late_start
+    user root
+    group root
+    oneshot
+
+service asus_lateprop /system/bin/init.asus.lateprop.sh
+   class main
+   user root
+   oneshot
+   disabled
+
+on property:ro.serialno=*
+    start asus_lateprop
+
+# /* --- [5816][SYSTEM][DMS ][LuboLu] 20150915 end   --- */
+# /* --- [5816][WiFi][RaymondLin] Make WiFi firmware version readable in the function test 20150917 BEGIN --- */
+on property:wlan.driver.status=ok
+    chmod 0664 /sys/class/net/wlan0/device/wcnss_version
+# /* --- [5816][WiFi][RaymondLin] Make WiFi firmware version readable in the function test 20150917 END   --- */
+
+service setup_fs /system/bin/setup_fs /dev/block/bootdevice/by-name/userdata /dev/block/bootdevice/by-name/cache
+    class core
+    oneshot
+
+# add for verify voucher
+service VerifyVouchers /system/bin/VerifyVouchers
+    class core
+    user root
+    oneshot
+    disabled
+
+# add count poweronoff test
+service count_poweronoff /system/bin/count.poweronoff.test.sh  
+    class core
+    user root
+    oneshot
+    disabled
+
+service ins_key /system/bin/install_key_server
+    class late_start
+    user root
+    group root
+    seclabel u:r:install_key_server:s0
+    disabled
+
+on property:atd.keybox.ready=FALSE
+    start ins_key
+
+on property:debug.check.keybox=1
+    start widevine
+
+service widevine /system/bin/sh /system/bin/widevine.sh
+    class late_start
+    disabled
+    oneshot
+
+on property:sys.boot_completed=1
+    start VerifyVouchers
+#    start count_poweronoff
+
+on property:persist.usb.diag=1
+    stop adbd
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/f_diag/clients diag
+    write /sys/class/android_usb/android0/f_serial/transports smd
+    write /sys/class/android_usb/android0/f_rmnet/transports smd,bam
+    write /sys/class/android_usb/android0/functions diag,serial,rmnet,adb
+    write /sys/class/android_usb/android0/diag 1
+    write /sys/class/android_usb/android0/enable 1
+    start adbd
+
+on property:persist.usb.diag=0
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/diag 0
+    write /sys/class/android_usb/android0/functions $sys.usb.config
+    write /sys/class/android_usb/android0/enable 1
+
+on property:sys.usb.config=rndis,diag,adb
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/idVendor 05C6
+    write /sys/class/android_usb/android0/idProduct 902D
+    write /sys/class/android_usb/android0/f_diag/clients diag
+    write /sys/class/android_usb/android0/functions rndis,diag,adb
+    write /sys/class/android_usb/android0/enable 1
+    start adbd
+    setprop sys.usb.state ${sys.usb.config}
+
+# ASUS add for support auto-upgrading touch fw by request firmware +++
+service touch_fw_update /system/bin/sh /system/etc/touch_fw_update.sh
+    class core
+    user root
+    disabled
+    oneshot
+# ASUS add for support auto-upgrading touch fw by request firmware ---
+
+# ASUS add for double click mode switch +++
+on property:persist.asus.dclick=0
+    write /sys/bus/i2c/devices/5-0010/wakeup_dclick 0
+on property:persist.asus.dclick=1
+    write /sys/bus/i2c/devices/5-0010/wakeup_dclick 1
+# ASUS add for double click mode switch ---
+
+# ASUS add for glove mode switch +++
+on property:persist.asus.glove=0
+    write /sys/bus/i2c/devices/5-0010/elan_ktf/glovemode 0
+on property:persist.asus.glove=1
+    write /sys/bus/i2c/devices/5-0010/elan_ktf/glovemode 1
+# ASUS add for glove mode switch ---
+
+# ASUS add for flip cover switch +++
+on property:persist.asus.flipcovermode=0
+    write /sys/bus/i2c/devices/5-0010/elan_ktf/smartwindow 0
+on property:persist.asus.flipcovermode=1
+    write /sys/bus/i2c/devices/5-0010/elan_ktf/smartwindow 1
+# ASUS add for flip cover switch ---
+
+# ASUS add for gesture mode switch +++
+service asusgesture /system/bin/sh /system/etc/update_asus_gesture.sh
+    class core
+    user root
+    oneshot
+    disabled
+
+on property:persist.asus.gesture.type=*
+    start asusgesture
+# ASUS add for gesture mode switch ---
+
+# ASUS add for ASUS Cover to enable or disable hall sensor +++
+on property:persist.asus.coverenabled=0
+    write /sys/devices/hall.75/lid_enable 0
+on property:persist.asus.coverenabled=1
+    write /sys/devices/hall.75/lid_enable 1
+# ASUS add for ASUS Cover to enable or disable hall sensor ---
+
+# DDR Stress Test +++
+
+   service qmesa_test /system/bin/sh /system/bin/qmesa.sh
+   user root
+   group root
+   disabled
+   oneshot
+
+# DDR Stress Test ---
+
+#ASUS_BSP +++ Yujoe "[A60K][Diag][N/A][Improve]Improve the process of saving QXDM log to SD card."
+service diag_mdlog_start /system/bin/diag_mdlog -c
+	class late_start
+	oneshot
+	disabled
+
+service diag_mdlog_stop /system/bin/diag_mdlog -k
+    class late_start
+	oneshot
+	disabled
+
+on property:persist.asus.qxdmlog.enable=1
+	start diag_mdlog_start
+
+on property:persist.asus.qxdmlog.enable=0
+	start diag_mdlog_stop
+
+on property:debug.asus.qxdmlog.enable=1
+	start diag_mdlog
+
+on property:debug.asus.qxdmlog.enable=0
+    stop diag_mdlog
+#ASUS_BSP --- Yujoe "[A60K][Diag][N/A][Improve]Improve the process of saving QXDM log to SD card."
+
+#ASUS_BSP+++ "[ZC551KL] setup qpst download mode properity"
+on property:persist.sys.downloadmode.enable=1
+    write /sys/module/restart/parameters/download_mode 1
+
+on property:persist.sys.downloadmode.enable=0
+    write /sys/module/restart/parameters/download_mode 0
+
+#ASUS_BSP--- "[ZC551KL] setup qpst download mode properity"
+
+# DDR Stress Test +++
+
+on property:asus.factory.qmesa.test=1
+   start qmesa_test
+
+on property:asus.factory.qmesa.test=0
+   stop qmesa_test
+
+# DDR Stress Test ---
+
+#mount APD
+on property:persist.sys.enableAPD=1
+    wait /dev/block/platform/msm_sdcc.1/by-name/APD
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/APD /APD nosuid nodev barrier=1
+    chown system system /APD
+    chmod 0775 /APD
+    chown system system /APD
+    restorecon /APD
+    restorecon /APD/*
+    restorecon_recursive   /APD
+    start APD_setting
+
+#unmount APD
+on property:persist.sys.enableAPD=0
+    umount /APD
+# --- ASUS_BSP : add for asus boot animation partition
+
+service APD_setting /system/etc/apd_setting.sh
+    oneshot
+    disabled
+
+service auwritekey /system/bin/auwritekey
+    class core
+    oneshot
+    disabled
+
+on property:debug.write.asuskey=1
+    start auwritekey
+
+# bugreport is triggered by power key menu
+service bugreport /system/bin/dumpstate -d -p -B \
+        -o /data/data/com.android.shell/files/bugreports/bugreport
+    class main
+    disabled
+    oneshot
+
+# ASUS_BSP Beryl_Hou +++ "run save-hcidump service"
+service save-hcidump /system/bin/sh /system/etc/init.asus.hcidump.sh
+    class late_start
+    user root
+    group root
+    disabled
+    oneshot
+
+on property:init.svc.save-hcidump=stopped
+    setprop debug.bluetooth.btsnoop false
+# ASUS_BSP Beryl_Hou ---
+
+# BT ATD tool
+service btrftestd /system/bin/btrftestd
+    class late_start
+    user root
+    group root
+    disabled
+    oneshot
+
+service btwifimac /system/bin/sh /system/etc/btwifimac.sh
+    class core
+    user root
+    group root
+    disabled
+    oneshot
+
+on property:sys.boot_completed=1
+    start btwifimac
+
+service sd_path /system/bin/sh /system/bin/sd_path.sh
+    user root
+    group root
+    disabled
+    oneshot
+
+#Asus_BSP Evan : gsensor calibration +++
+#service calidata /system/bin/sh /system/etc/sensor_init.sh "onboot"
+#    class core
+#    user root
+#    oneshot
+#Asus_BSP Evan : gsensor calibration ---
+
+#ASUS_BSP+++ Kevin_Fu "Set audio for FM ATD test"(Jeremy add 20150122)
+service asus_fmaudio /system/bin/sh /system/etc/init.asus.fm.sh
+		class late_start
+		user root
+		group root
+		disabled
+		oneshot
+
+on property:hw.fm.fmaudio=0
+		start asus_fmaudio
+
+on property:hw.fm.fmaudio=1
+		start asus_fmaudio
+#ASUS_BSP--- Kevin_Fu "Set audio for FM ATD test"(Jeremy add 20150122)
+
+
+service ponf_test /sbin/ponft
+    user root
+    group root
+    disabled
+    oneshot
+    seclabel u:r:ponft:s0
+
+on property:ro.boot.poweronoff=Y
+    wait /sbin/ponft
+    start ponf_test
+
+#Stan for keybox rewriting
+on property:sys.boot_completed=1
+    start ins_key

@@ -1,0 +1,3 @@
+#recovery mode support exfat
+on fs
+    insmod /system/lib/modules/texfat.ko
